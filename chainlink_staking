@@ -1,0 +1,25 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+
+def find_element_with_selenium(url):
+    # Start a new instance of the Chrome browser (you can change this to Firefox if needed)
+    driver = webdriver.Chrome()
+
+    try:
+        # Navigate to the given URL
+        driver.get(url)
+
+        # Find the element using its CSS selector (replace with the actual selector)
+        element = driver.find_element(By.CSS_SELECTOR, '#__next > main > div > div:nth-child(2) > div > div.poolVisualization_container__BLdIL.card_container__GTjDK > div > svg')
+
+        # Return the text content of the element
+        return element.text.strip()
+
+    finally:
+        # Close the browser window
+        driver.quit()
+
+# Example usage with the given URL
+result = find_element_with_selenium('http://staking.chain.link')
+print(result)

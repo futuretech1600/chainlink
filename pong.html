@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pong</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    canvas { display: block; border: 2px solid #333; }
+  </style>
+</head>
+<body>
+  <canvas id="pong" width="800" height="500"></canvas>
+  <script>
+    const CANVAS_W = 800, CANVAS_H = 500;
+    const PADDLE_W = 12, PADDLE_H = 90;
+    const BALL_SIZE = 12;
+    const PADDLE_SPEED = 5;
+    const BALL_SPEED_INIT = 4;
+    const WIN_SCORE = 7;
+
+    const canvas = document.getElementById('pong');
+    const ctx = canvas.getContext('2d');
+
+    const state = {
+      ball: { x: 0, y: 0, vx: 0, vy: 0 },
+      left: { y: (CANVAS_H - PADDLE_H) / 2, score: 0 },
+      right: { y: (CANVAS_H - PADDLE_H) / 2, score: 0 },
+      keys: {},
+      phase: 'waiting',
+      goalTimer: 0,
+    };
+
+    function resetBall() {
+      state.ball.x = CANVAS_W / 2 - BALL_SIZE / 2;
+      state.ball.y = CANVAS_H / 2 - BALL_SIZE / 2;
+      const angle = (Math.random() * 80 - 40) * Math.PI / 180;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      state.ball.vx = dir * BALL_SPEED_INIT * Math.cos(angle);
+      state.ball.vy = BALL_SPEED_INIT * Math.sin(angle);
+    }
+
+    function resetGame() {
+      state.left.score = 0;
+      state.right.score = 0;
+      state.left.y = (CANVAS_H - PADDLE_H) / 2;
+      state.right.y = (CANVAS_H - PADDLE_H) / 2;
+      resetBall();
+      state.phase = 'waiting';
+    }
+
+    window.addEventListener('keydown', e => {
+      if (['ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) e.preventDefault();
+      state.keys[e.code] = true;
+      if (e.code === 'Space') {
+        if (state.phase === 'waiting') state.phase = 'playing';
+        else if (state.phase === 'won') resetGame();
+      }
+    });
+
+    window.addEventListener('keyup', e => {
+      state.keys[e.code] = false;
+    });
+
+    function clampPaddle(paddle) {
+      paddle.y = Math.max(0, Math.min(CANVAS_H - PADDLE_H, paddle.y));
+    }
+
+    function update() {
+      if (state.phase !== 'playing') {
+        if (state.phase === 'goal') {
+          state.goalTimer--;
+          if (state.goalTimer <= 0) {
+            resetBall();
+            state.phase = 'playing';
+          }
+        }
+        return;
+      }
+
+      // Move paddles
+      if (state.keys['KeyW'])     state.left.y  -= PADDLE_SPEED;
+      if (state.keys['KeyS'])     state.left.y  += PADDLE_SPEED;
+      if (state.keys['ArrowUp'])  state.right.y -= PADDLE_SPEED;
+      if (state.keys['ArrowDown'])state.right.y += PADDLE_SPEED;
+      clampPaddle(state.left);
+      clampPaddle(state.right);
+
+      // Move ball
+      state.ball.x += state.ball.vx;
+      state.ball.y += state.ball.vy;
+
+      // Wall bounce (top/bottom)
+      if (state.ball.y <= 0) {
+        state.ball.y = 0;
+        state.ball.vy = Math.abs(state.ball.vy);
+      } else if (state.ball.y + BALL_SIZE >= CANVAS_H) {
+        state.ball.y = CANVAS_H - BALL_SIZE;
+        state.ball.vy = -Math.abs(state.ball.vy);
+      }
+
+      // Left paddle collision
+      const bCx = state.ball.x + BALL_SIZE / 2;
+      const bCy = state.ball.y + BALL_SIZE / 2;
+
+      if (
+        state.ball.vx < 0 &&
+        bCx <= PADDLE_W &&
+        bCy >= state.left.y &&
+        bCy <= state.left.y + PADDLE_H
+      ) {
+        state.ball.x = PADDLE_W;
+        state.ball.vx = Math.abs(state.ball.vx) * 1.05;
+        const hitPos = bCy - (state.left.y + PADDLE_H / 2);
+        state.ball.vy = hitPos * 0.2;
+        if (Math.abs(state.ball.vy) < 0.5) state.ball.vy = state.ball.vy < 0 ? -0.5 : 0.5;
+      }
+
+      // Right paddle collision
+      if (
+        state.ball.vx > 0 &&
+        bCx >= CANVAS_W - PADDLE_W &&
+        bCy >= state.right.y &&
+        bCy <= state.right.y + PADDLE_H
+      ) {
+        state.ball.x = CANVAS_W - PADDLE_W - BALL_SIZE;
+        state.ball.vx = -Math.abs(state.ball.vx) * 1.05;
+        const hitPos = bCy - (state.right.y + PADDLE_H / 2);
+        state.ball.vy = hitPos * 0.2;
+        if (Math.abs(state.ball.vy) < 0.5) state.ball.vy = state.ball.vy < 0 ? -0.5 : 0.5;
+      }
+
+      // Scoring
+      if (state.ball.x + BALL_SIZE < 0) {
+        state.right.score++;
+        endRound();
+      } else if (state.ball.x > CANVAS_W) {
+        state.left.score++;
+        endRound();
+      }
+    }
+
+    function endRound() {
+      if (state.left.score >= WIN_SCORE || state.right.score >= WIN_SCORE) {
+        state.phase = 'won';
+      } else {
+        state.phase = 'goal';
+        state.goalTimer = 60; // ~1 second at 60fps
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Dashed centre line
+      ctx.fillStyle = '#444';
+      for (let y = 0; y < CANVAS_H; y += 20) {
+        ctx.fillRect(CANVAS_W / 2 - 2, y, 4, 12);
+      }
+
+      // Paddles
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, state.left.y, PADDLE_W, PADDLE_H);
+      ctx.fillRect(CANVAS_W - PADDLE_W, state.right.y, PADDLE_W, PADDLE_H);
+
+      // Ball
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(state.ball.x, state.ball.y, BALL_SIZE, BALL_SIZE);
+
+      // Scores
+      ctx.font = 'bold 48px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(state.left.score, CANVAS_W / 4, 60);
+      ctx.fillText(state.right.score, (3 * CANVAS_W) / 4, 60);
+
+      // Overlay messages
+      if (state.phase === 'waiting') {
+        drawOverlay('Press SPACE to start', 'W/S  vs  ↑/↓');
+      } else if (state.phase === 'won') {
+        const winner = state.left.score >= WIN_SCORE ? 'Player 1' : 'Player 2';
+        drawOverlay(`${winner} Wins!`, 'Press SPACE to restart');
+      }
+    }
+
+    function drawOverlay(line1, line2) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(CANVAS_W / 2 - 220, CANVAS_H / 2 - 60, 440, 120);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 32px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(line1, CANVAS_W / 2, CANVAS_H / 2 - 10);
+      ctx.font = '18px monospace';
+      ctx.fillStyle = '#aaa';
+      ctx.fillText(line2, CANVAS_W / 2, CANVAS_H / 2 + 30);
+    }
+
+    resetBall();
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  </script>
+</body>
+</html>

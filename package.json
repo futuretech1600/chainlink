@@ -1,0 +1,28 @@
+{
+  "name": "pickleball-genesis",
+  "version": "1.0.0",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "expo": "~50.0.0",
+    "expo-status-bar": "~1.11.1",
+    "expo-gl": "~13.6.0",
+    "expo-2d-context": "^1.0.2",
+    "expo-font": "~11.10.3",
+    "react": "18.2.0",
+    "react-native": "0.73.6",
+    "tone": "^14.7.77",
+    "react-native-reanimated": "~3.6.2",
+    "@react-native-async-storage/async-storage": "1.21.0",
+    "@expo-google-fonts/press-start-2p": "^0.2.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0"
+  },
+  "private": true
+}
